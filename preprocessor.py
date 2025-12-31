@@ -4,14 +4,21 @@ import pandas as pd
 def preprocess(data):
 
     # Supports:
-    # [20/12/25, 3:46:30 PM] Name:
-    pattern = r'\[\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}:\d{2}\s?[APap][Mm]\]'
+    # [20/12/25, 3:46:30 PM]
+    # 9/5/20, 23:24 -
+    # [20/12/25, 3:46:30 PM]  (unicode PM)
+
+    pattern = (
+        r'\[\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}:\d{2}\s?[APap][Mm]\]'
+        r'|\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}\s-\s'
+        r'|\[\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}:\d{2}[\u202f\s]?[APap][Mm]\]'
+    )
 
     messages = re.split(pattern, data)[1:]
     dates = re.findall(pattern, data)
 
     if len(messages) == 0:
-        return pd.DataFrame(columns=['user', 'message'])
+        return pd.DataFrame()
 
     df = pd.DataFrame({
         'user_message': messages,
@@ -22,12 +29,14 @@ def preprocess(data):
         df['message_date']
         .str.replace('[', '', regex=False)
         .str.replace(']', '', regex=False)
+        .str.replace(' - ', '', regex=False)
     )
 
     df['message_date'] = pd.to_datetime(
         df['message_date'],
         format='mixed',
-        dayfirst=True
+        dayfirst=True,
+        errors='coerce'
     )
 
     df.rename(columns={'message_date': 'date'}, inplace=True)
@@ -48,6 +57,10 @@ def preprocess(data):
     df['message'] = msgs
     df.drop(columns=['user_message'], inplace=True)
 
+    # 🔐 SAFETY (prevents KeyError: 'user')
+    if 'user' not in df.columns:
+        df['user'] = 'group_notification'
+
     # -------------------- DATE FEATURES --------------------
     df['only_date'] = df['date'].dt.date
     df['year'] = df['date'].dt.year
@@ -58,7 +71,7 @@ def preprocess(data):
     df['hour'] = df['date'].dt.hour
 
     df['period'] = df['hour'].apply(
-        lambda x: '23-00' if x == 23 else f'{x:02d}-{(x+1)%24:02d}'
+        lambda x: '23-00' if x == 23 else f'{x:02d}-{(x + 1) % 24:02d}'
     )
 
     return df
