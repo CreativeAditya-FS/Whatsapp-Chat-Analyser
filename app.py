@@ -5,7 +5,7 @@ import seaborn as sns
 
 st.title("Whatsapp Chat Analyzer")
 st.sidebar.title("Whatsapp Chat Analyzer")
-st.sidebar.text("Minor Project")
+st.sidebar.text("Major Project")
 
 uploaded_file = st.sidebar.file_uploader("Choose a file")
 
